@@ -9,4 +9,3 @@ client/.env
 dist/
 .DS_Store
 *.log
-.claude/
