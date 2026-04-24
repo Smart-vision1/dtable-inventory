@@ -1,11 +1,7 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Product = require('./models/Product');
 const Movement = require('./models/Movement');
-
-const connectDB = require('./config/db');
 
 const users = [
   { username: 'admin', password: 'admin123', role: 'admin' },
@@ -79,71 +75,80 @@ const products = [
   },
 ];
 
-const seed = async () => {
-  try {
-    await connectDB();
+const runSeed = async () => {
+  await User.deleteMany({});
+  await Product.deleteMany({});
+  await Movement.deleteMany({});
 
-    await User.deleteMany({});
-    await Product.deleteMany({});
-    await Movement.deleteMany({});
-    console.log('Cleared existing data.');
-
-    const createdUsers = [];
-    for (const userData of users) {
-      const user = await User.create(userData);
-      createdUsers.push(user);
-      console.log(`Created user: ${user.username} (${user.role})`);
-    }
-
-    const adminUser = createdUsers.find((u) => u.role === 'admin');
-
-    const createdProducts = await Product.insertMany(products);
-    console.log(`Created ${createdProducts.length} products.`);
-
-    const movements = [
-      {
-        product: createdProducts[0]._id,
-        type: 'IN',
-        quantity: 10,
-        note: 'Initial stock delivery',
-        createdBy: adminUser._id,
-      },
-      {
-        product: createdProducts[1]._id,
-        type: 'OUT',
-        quantity: 6,
-        note: 'Office distribution',
-        createdBy: adminUser._id,
-      },
-      {
-        product: createdProducts[3]._id,
-        type: 'IN',
-        quantity: 50,
-        note: 'Monthly restock',
-        createdBy: adminUser._id,
-      },
-      {
-        product: createdProducts[6]._id,
-        type: 'OUT',
-        quantity: 2,
-        note: 'Shipping department use',
-        createdBy: adminUser._id,
-      },
-    ];
-
-    await Movement.insertMany(movements);
-    console.log(`Created ${movements.length} stock movements.`);
-
-    console.log('\nSeed completed successfully!');
-    console.log('Login credentials:');
-    console.log('  Admin  → username: admin   | password: admin123');
-    console.log('  Viewer → username: viewer  | password: viewer123');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('Seed error:', error);
-    process.exit(1);
+  const createdUsers = [];
+  for (const userData of users) {
+    const user = await User.create(userData);
+    createdUsers.push(user);
+    console.log(`[seed] Created user: ${user.username} (${user.role})`);
   }
+
+  const adminUser = createdUsers.find((u) => u.role === 'admin');
+  const createdProducts = await Product.insertMany(products);
+  console.log(`[seed] Created ${createdProducts.length} products.`);
+
+  const movements = [
+    {
+      product: createdProducts[0]._id,
+      type: 'IN',
+      quantity: 10,
+      note: 'Initial stock delivery',
+      createdBy: adminUser._id,
+    },
+    {
+      product: createdProducts[1]._id,
+      type: 'OUT',
+      quantity: 6,
+      note: 'Office distribution',
+      createdBy: adminUser._id,
+    },
+    {
+      product: createdProducts[3]._id,
+      type: 'IN',
+      quantity: 50,
+      note: 'Monthly restock',
+      createdBy: adminUser._id,
+    },
+    {
+      product: createdProducts[6]._id,
+      type: 'OUT',
+      quantity: 2,
+      note: 'Shipping department use',
+      createdBy: adminUser._id,
+    },
+  ];
+
+  await Movement.insertMany(movements);
+  console.log(`[seed] Created ${movements.length} stock movements.`);
+  console.log('[seed] Done. Credentials → admin:admin123 | viewer:viewer123');
 };
 
-seed();
+// Called from server.js on startup — only seeds when DB is empty.
+const seedIfEmpty = async () => {
+  const count = await User.countDocuments();
+  if (count > 0) {
+    console.log('[seed] Data already exists — skipping auto-seed.');
+    return;
+  }
+  console.log('[seed] Empty database detected — running auto-seed...');
+  await runSeed();
+};
+
+// Allow running directly: node seed.js
+if (require.main === module) {
+  require('dotenv').config();
+  const connectDB = require('./config/db');
+  connectDB()
+    .then(runSeed)
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('[seed] Error:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = { seedIfEmpty };

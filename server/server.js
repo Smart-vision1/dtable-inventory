@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const { seedIfEmpty } = require('./seed');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -9,8 +10,6 @@ const movementRoutes = require('./routes/movementRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
-
-connectDB();
 
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
@@ -43,6 +42,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-});
+
+const start = async () => {
+  await connectDB();
+  await seedIfEmpty();
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+  });
+};
+
+start();
